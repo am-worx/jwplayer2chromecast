@@ -1,0 +1,196 @@
+<!--
+Copyright (C) 2013 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IEEETV Chromecast sender</title>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script type="text/javascript" src="//www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
+    <style>
+        #messages {
+            font-weight: bold;
+        }
+
+        #messages span {
+            font-weight: normal;
+        }
+        .error {
+            color: #FF0000;
+        }
+    </style>
+</head>
+<body>
+  <h1>Video sender</h1>
+
+  <script type="text/javascript">
+
+    window.apiInitialized = false;
+    window.apiSession = null;
+    window.apiMedia = null;
+    window.showingHud = true;
+
+    var sessionJoinedListener = function(session) {
+        console.log('session_established', "Joined " + session.sessionId);
+    }
+    var sessionUpdateListener = function(session) {}
+    var receiverListener = function(availability) {
+         console.log('receivers_available', ('available' === availability) ? "Yes" : "No");
+    }
+    var onInitSuccess = function() {
+        console.log('api_status', "Initialized");
+        window.apiInitialized = true;
+    }
+    var onInitError = function(castError) {
+        console.log('api_status', "Initialize Error: " + JSON.stringify(castError));
+    }
+
+    function loadMediaOntoReceiver() {
+        //var url = $('#mediaurl').val();
+        var url = 'http://ieeetv.ieee.org/ns/ieeetvdl/Spectrum/ces2013/lego-sized.mp4';
+        var ext = url.split('.').pop();
+        var mime = 'unknown';
+        if(url !== ext) {
+            // has extension
+            mime = window.mimeTypes[ext]
+        }
+        var mediaInfo = new chrome.cast.media.MediaInfo(url, mime);
+        console.log("## MediaInfo('"+url+"', '"+mime+"')");
+        var loadRequest = new chrome.cast.media.LoadRequest(mediaInfo);
+        //loadRequest.autoplay = $('#autoplay').prop('checked');
+       	loadRequest.autoplay = true;
+
+        console.log('Sending Load Request: ')
+        console.log(loadRequest);
+
+        // Loads media into a running receiver application.
+        // This call will fail unless this session supports the namespace "urn:x-cast:chrome.cast.media".
+        window.apiSession.loadMedia(loadRequest,
+          function(media){ // Success
+            // chrome.cast.media.Media object
+            window.apiMedia = media;
+            console.log("Got media object");
+
+            sendPlayPause();
+
+          },
+          function(castError){
+              console.error(''+JSON.stringify(castError));
+          });
+  	}
+
+    var mediaUpdateListener = function(bool) {
+        if(window.apiMedia.playerState === chrome.cast.media.PlayerState.PLAYING){
+            console.log("Playing");
+        } else if(window.apiMedia.playerState === chrome.cast.media.PlayerState.PAUSED) {
+            console.log("Paused");
+        } else if(window.apiMedia.playerState === chrome.cast.media.PlayerState.IDLE) {
+            console.log("Idle");
+        } else if(window.apiMedia.playerState === chrome.cast.media.PlayerState.STOPPED) {
+            console.log("Stopped");
+        }
+    }
+
+    function sendPlayPause() {
+      if(window.apiMedia.playerState === chrome.cast.media.PlayerState.PLAYING) {
+        window.apiMedia.pause(new chrome.cast.media.PauseRequest(),
+          function(){
+            // successfully paused
+            console.log("Successfully Paused");
+          },
+          function(castError){
+            console.error(JSON.stringify(castError));
+          });
+      } else {
+        window.apiMedia.play(new chrome.cast.media.PlayRequest(),
+          function(){
+            // successfully playing
+            console.log("Successfully Playing");
+          },
+          function(castError){
+            console.error(JSON.stringify(castError));
+          });
+      }
+    }
+
+    function sendStop() {
+      if(window.apiMedia &&
+        (window.apiMedia.playerState === chrome.cast.media.PlayerState.PAUSED) ||
+        (window.apiMedia.playerState === chrome.cast.media.PlayerState.PLAYING)){
+    			window.apiMedia.stop(new chrome.cast.media.StopRequest(),
+            function(){
+              // successfully stopped
+            },
+            function(castError){
+              console.error(JSON.stringify(castError));
+            });
+      }
+    }
+
+    function launchAppOnReceiver() {
+      if(window.apiInitialized) {
+        chrome.cast.requestSession(
+          // Success
+          function(session){
+            window.apiSession = session;
+            session.addUpdateListener(sessionUpdateListener);
+            console.log('session_established', "YES - " + session.sessionId);
+
+            loadMediaOntoReceiver();
+          },
+          // Error
+          function(castError){
+            console.log('session_established', "ERROR: " + JSON.stringify(castError));
+
+            sendStop();
+
+            loadMediaOntoReceiver();
+
+          });
+      } else {
+        console.log('session_established', "NOT INITIALIZED");
+      }
+    }
+
+    function initializeCastApi() {
+      if (!chrome.cast || !chrome.cast.isAvailable) {
+          console.log('app_status', "Cast APIs not Available. Retrying...");
+          setTimeout(initializeCastApi, 500);
+          return;
+      }
+      console.log('app_status', "Initializing...");
+      var sessionRequest = new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID);
+      var apiConfig = new chrome.cast.ApiConfig(sessionRequest, sessionJoinedListener, receiverListener);
+      chrome.cast.initialize(apiConfig, onInitSuccess, onInitError);
+
+      launchAppOnReceiver();
+
+    };
+
+
+    // -- You can ignore the following it is here for convenience only --
+    window.mimeTypes = {
+      'mov':'video/quicktime',
+      'mp4':'video/mp4',
+      'm3u8':'application/x-mpegURL'
+    };
+
+    window.onload = function() {
+    	initializeCastApi();
+    }
+
+  </script>
+</body>
+</html>
