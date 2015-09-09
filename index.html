@@ -1,39 +1,13 @@
-<!--
-Copyright (C) 2013 Google Inc. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
     <title>IEEETV Chromecast sender</title>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
     <script type="text/javascript" src="//www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
-    <style>
-        #messages {
-            font-weight: bold;
-        }
-
-        #messages span {
-            font-weight: normal;
-        }
-        .error {
-            color: #FF0000;
-        }
-    </style>
 </head>
 <body>
   <h1>Video sender</h1>
+  <button type="button" id="sendChromecast" onclick="launchAppOnReceiver()" style="display: none;">Chromecast</button>
 
   <script type="text/javascript">
 
@@ -84,7 +58,6 @@ limitations under the License.
             console.log("Got media object");
 
             sendPlayPause();
-
           },
           function(castError){
               console.error(''+JSON.stringify(castError));
@@ -175,7 +148,7 @@ limitations under the License.
       var apiConfig = new chrome.cast.ApiConfig(sessionRequest, sessionJoinedListener, receiverListener);
       chrome.cast.initialize(apiConfig, onInitSuccess, onInitError);
 
-      launchAppOnReceiver();
+      /*launchAppOnReceiver();*/
 
     };
 
@@ -188,6 +161,7 @@ limitations under the License.
     };
 
     window.onload = function() {
+      document.getElementById('sendChromecast').style.display = "block";
     	initializeCastApi();
     }
 
